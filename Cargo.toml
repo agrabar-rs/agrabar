@@ -1,0 +1,16 @@
+[package]
+name = "bars"
+version = "0.1.0"
+authors = ["Amanda P. Graven <amanda@amandag.net>"]
+edition = "2018"
+
+[dependencies]
+alsa = "0"
+failure = "0"
+libnotify = "1.0"
+unixbar = { git = "https://github.com/agraven/unixbar" }
+rust-pulsectl = "0.2"
+systemstat = "0"
+
+[profile.release]
+lto = true
