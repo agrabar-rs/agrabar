@@ -22,7 +22,10 @@ use std::{
 	io::ErrorKind as IoErrorKind,
 	path::Path,
 	process::Command,
-	sync::{Arc, Mutex},
+	sync::{
+		atomic::{AtomicBool, Ordering},
+		Arc,
+	},
 };
 
 use libnotify::{Notification, Urgency};
@@ -69,9 +72,7 @@ mod volume {
 	pub fn set_device(controller: &mut SinkController, name: &str) -> Result<(), failure::Error> {
 		// Set default device
 		match controller.set_default_device(name) {
-			Ok(success) if success == false => {
-				Notification::new("Couldn't set new device", None, None).show()?
-			}
+			Ok(false) => Notification::new("Couldn't set new device", None, None).show()?,
 			Err(e) => Notification::new(
 				"Error setting default device",
 				Some(format!("{:?}", e).as_str()),
@@ -95,7 +96,7 @@ mod volume {
 	}
 
 	pub fn menu() -> Result<(), failure::Error> {
-		let mut controller = SinkController::create();
+		let mut controller = SinkController::create()?;
 		// Launch device selection dialogue
 		let mut cmd = Command::new("zenity")
 			.args(&[
@@ -151,7 +152,7 @@ mod volume {
 
 fn main() {
 	libnotify::init(env!("CARGO_PKG_NAME")).unwrap();
-	let battery_warned = Arc::new(Mutex::new(false));
+	let battery_warned = Arc::new(AtomicBool::new(false));
 	// The structure representing the bar to generate
 	let formatter = I3BarFormatter::new();
 	UnixBar::new(formatter)
@@ -249,7 +250,7 @@ fn main() {
 					_ => "﹖",
 				})
 				.unwrap_or("﹖");
-			let (name, color) = match connection.split(':').nth(0).unwrap() {
+			let (name, color) = match connection.split(':').next().unwrap() {
 				"" => ("Disconnected", "#BB5555"),
 				name => (name, "#99ee99"),
 			};
@@ -279,9 +280,9 @@ fn main() {
 		.add(Periodic::new(Duration::from_secs(2), || {
 			let temp = System::new().cpu_temp().unwrap();
 			let icon = match temp as u32 {
-				0_..=59 => "",
+				0..=59 => "",
 				60..=69 => "",
-				60..=79 => "",
+				70..=79 => "",
 				80..=89 => "",
 				_ => "",
 			};
@@ -303,10 +304,9 @@ fn main() {
 			let capacity = (battery.remaining_capacity * 100.0).round() as u8;
 
 			// Send notification if needed
-			let arc = battery_warned.clone();
-			let has_warned = &mut *arc.lock().unwrap();
+			let battery_warned = battery_warned.clone();
 			if capacity <= 10 && !charging {
-				if !(*has_warned) {
+				if !(battery_warned.load(Ordering::Release)) {
 					let notif = Notification::new(
 						"Battery level critical",
 						Some("Connect to power source immediately"),
@@ -314,10 +314,10 @@ fn main() {
 					);
 					notif.set_urgency(Urgency::Critical);
 					notif.show().unwrap();
-					*has_warned = true;
+					battery_warned.store(true, Ordering::Acquire);
 				}
 			} else {
-				*has_warned = false;
+				battery_warned.store(false, Ordering::Acquire)
 			}
 
 			let (icon, color) = match capacity {

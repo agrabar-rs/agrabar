@@ -9,7 +9,7 @@ alsa = "0"
 failure = "0"
 libnotify = "1.0"
 unixbar = { git = "https://github.com/agraven/unixbar" }
-rust-pulsectl = "0.2"
+pulsectl = { version = "0.2", package = "rust-pulsectl-fork" }
 systemstat = "0"
 
 [profile.release]
