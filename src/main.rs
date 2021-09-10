@@ -13,11 +13,6 @@
 // Licence for the specific language governing permissions and limitations under
 // the Licence.
 
-extern crate alsa;
-extern crate failure;
-extern crate systemstat;
-extern crate unixbar;
-
 mod volume;
 
 use std::{
