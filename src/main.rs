@@ -306,7 +306,7 @@ fn main() {
 			// Send notification if needed
 			let battery_warned = battery_warned.clone();
 			if capacity <= 10 && !charging {
-				if !(battery_warned.load(Ordering::Release)) {
+				if !(battery_warned.load(Ordering::Acquire)) {
 					let notif = Notification::new(
 						"Battery level critical",
 						Some("Connect to power source immediately"),
@@ -314,10 +314,10 @@ fn main() {
 					);
 					notif.set_urgency(Urgency::Critical);
 					notif.show().unwrap();
-					battery_warned.store(true, Ordering::Acquire);
+					battery_warned.store(true, Ordering::Release);
 				}
 			} else {
-				battery_warned.store(false, Ordering::Acquire)
+				battery_warned.store(false, Ordering::Release)
 			}
 
 			let (icon, color) = match capacity {
