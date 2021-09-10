@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libdbus-1-dev libnotify-dev libgdk-pixbuf-2.0-dev libasound2-dev
+          sudo apt-get install libdbus-1-dev libnotify-dev libgdk-pixbuf2.0-dev libasound2-dev
 
       - name: Install rust
         uses: actions-rs/toolchain@v1
