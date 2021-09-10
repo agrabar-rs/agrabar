@@ -11,5 +11,9 @@ Building requires the following libraries:
 * dbus
 * libnotify
 * alsa
+* gdk-pixbuf2
+
+Fedora dependencies:
+`sudo dnf install alsa-lib-devel dbus-devel gdk-pixbuf2-devel libnotify-devel`
 
 Some might be missing from this list, please notify me if so
