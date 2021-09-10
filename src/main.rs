@@ -25,6 +25,7 @@ use std::{
 	},
 };
 
+use anyhow::{anyhow, Result};
 use libnotify::{Notification, Urgency};
 use systemstat::{Platform, System};
 use unixbar::{
@@ -36,14 +37,12 @@ use unixbar::{
 	},
 	Duration, UnixBar,
 };
-use anyhow::{anyhow, Result};
-
 
 fn catch<F: FnMut() -> Result<Format, anyhow::Error>>(mut closure: F) -> Format {
-    match closure() {
-        Ok(fmt) => fmt,
-        Err(e) => bfmt![fg["#ff5555"] fmt["{}", e.to_string()]]
-    }
+	match closure() {
+		Ok(fmt) => fmt,
+		Err(e) => bfmt![fg["#ff5555"] fmt["{}", e.to_string()]],
+	}
 }
 
 fn main() -> Result<()> {
@@ -112,124 +111,140 @@ fn main() -> Result<()> {
 			bfmt![fmt["⌨ {}", layout]]
 		}))
 		// Disk space
-		.add(Periodic::new(Duration::from_secs(2), || catch(|| {
-			// Get the filesystem mounted at root
-			let fs = System::new().mount_at(Path::new("/"))?;
-			Ok(bfmt![
-				fg["#cccccc"]
-				fmt[" {}", fs.avail.to_string()]
-			])
-		})))
+		.add(Periodic::new(Duration::from_secs(2), || {
+			catch(|| {
+				// Get the filesystem mounted at root
+				let fs = System::new().mount_at(Path::new("/"))?;
+				Ok(bfmt![
+					fg["#cccccc"]
+					fmt[" {}", fs.avail.to_string()]
+				])
+			})
+		}))
 		// Access point name
-		.add(Periodic::new(Duration::from_secs(1), || catch(|| {
-			let nmcli = |args: &[&str]| -> String {
-				Command::new("nmcli")
-					.args(args)
-					.output()
-					.map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
-					.unwrap_or_default()
-			};
-			let connection = nmcli(&["--terse", "connection", "show", "--active"]);
-			let connectivity = nmcli(&["networking", "connectivity", "check"]);
-			let status = match connectivity.trim_end() {
-				"full" => "",
-				"portal" | "limited" | "none" => "!",
-				"unknown" | "" => "?",
-				_ => "?",
-			};
-			let icon = connection
-				.split(':')
-				.nth(2)
-				.map(|kind| match kind {
-					"802-3-ethernet" => "",
-					"802-11-wireless" => "",
-					_ => "﹖",
-				})
-				.unwrap_or("﹖");
-			let (name, color) = match connection.split(':').next().ok_or_else(|| anyhow!("nmcli returned unexpected data!"))? {
-				"" => ("Disconnected", "#BB5555"),
-				name => (name, "#99ee99"),
-			};
-			Ok(bfmt![
-				fg[color]
-				fmt["{} {}{}", icon, name, status]
-			])
-		})))
+		.add(Periodic::new(Duration::from_secs(1), || {
+			catch(|| {
+				let nmcli = |args: &[&str]| -> String {
+					Command::new("nmcli")
+						.args(args)
+						.output()
+						.map(|output| String::from_utf8_lossy(&output.stdout).into_owned())
+						.unwrap_or_default()
+				};
+				let connection = nmcli(&["--terse", "connection", "show", "--active"]);
+				let connectivity = nmcli(&["networking", "connectivity", "check"]);
+				let status = match connectivity.trim_end() {
+					"full" => "",
+					"portal" | "limited" | "none" => "!",
+					"unknown" | "" => "?",
+					_ => "?",
+				};
+				let icon = connection
+					.split(':')
+					.nth(2)
+					.map(|kind| match kind {
+						"802-3-ethernet" => "",
+						"802-11-wireless" => "",
+						_ => "﹖",
+					})
+					.unwrap_or("﹖");
+				let (name, color) = match connection
+					.split(':')
+					.next()
+					.ok_or_else(|| anyhow!("nmcli returned unexpected data!"))?
+				{
+					"" => ("Disconnected", "#BB5555"),
+					name => (name, "#99ee99"),
+				};
+				Ok(bfmt![
+					fg[color]
+					fmt["{} {}{}", icon, name, status]
+				])
+			})
+		}))
 		// Load average
-		.add(Periodic::new(Duration::from_secs(1), || catch (|| {
-			let load = System::new().load_average()?;
-			Ok(bfmt![
-				fg["#cc9999"]
-				fmt[" {:.2}", load.one]
-			])
-		})))
+		.add(Periodic::new(Duration::from_secs(1), || {
+			catch(|| {
+				let load = System::new().load_average()?;
+				Ok(bfmt![
+					fg["#cc9999"]
+					fmt[" {:.2}", load.one]
+				])
+			})
+		}))
 		// Memory
-		.add(Periodic::new(Duration::from_secs(2), || catch(|| {
-			let memory = System::new().memory()?;
-			let free = memory.free.as_u64() as f32 / 1_000_000_000.0;
-			Ok(bfmt![
-				fg["#ffc300"]
-				fmt[" {:.1} G", free]
-			])
-		})))
+		.add(Periodic::new(Duration::from_secs(2), || {
+			catch(|| {
+				let memory = System::new().memory()?;
+				let free = memory.free.as_u64() as f32 / 1_000_000_000.0;
+				Ok(bfmt![
+					fg["#ffc300"]
+					fmt[" {:.1} G", free]
+				])
+			})
+		}))
 		// Temperature
-		.add(Periodic::new(Duration::from_secs(2), || catch(|| {
-			let temp = System::new().cpu_temp()?;
-			let icon = match temp as u32 {
-				0..=59 => "",
-				60..=69 => "",
-				70..=79 => "",
-				80..=89 => "",
-				_ => "",
-			};
-			Ok(bfmt![
-				fg["#10ff10"]
-				fmt["{} {:.1} °C", icon, temp]
-			])
-		})))
+		.add(Periodic::new(Duration::from_secs(2), || {
+			catch(|| {
+				let temp = System::new().cpu_temp()?;
+				let icon = match temp as u32 {
+					0..=59 => "",
+					60..=69 => "",
+					70..=79 => "",
+					80..=89 => "",
+					_ => "",
+				};
+				Ok(bfmt![
+					fg["#10ff10"]
+					fmt["{} {:.1} °C", icon, temp]
+				])
+			})
+		}))
 		// Battery
-		.add(Periodic::new(Duration::from_secs(1), move || catch(|| {
-			let charging = match System::new().on_ac_power() {
-				Ok(on_ac) => on_ac,
-				_ => return Ok(bfmt![text[""]]),
-			};
-			let battery = match System::new().battery_life() {
-				Ok(battery) => battery,
-				_ => return Ok(bfmt![text[""]]),
-			};
-			let capacity = (battery.remaining_capacity * 100.0).round() as u8;
+		.add(Periodic::new(Duration::from_secs(1), move || {
+			catch(|| {
+				let charging = match System::new().on_ac_power() {
+					Ok(on_ac) => on_ac,
+					_ => return Ok(bfmt![text[""]]),
+				};
+				let battery = match System::new().battery_life() {
+					Ok(battery) => battery,
+					_ => return Ok(bfmt![text[""]]),
+				};
+				let capacity = (battery.remaining_capacity * 100.0).round() as u8;
 
-			// Send notification if needed
-			let battery_warned = battery_warned.clone();
-			if capacity <= 10 && !charging {
-				if !(battery_warned.load(Ordering::Acquire)) {
-					let notif = Notification::new(
-						"Battery level critical",
-						Some("Connect to power source immediately"),
-						Some("battery-caution"),
-					);
-					notif.set_urgency(Urgency::Critical);
-					notif.show()?;
-					battery_warned.store(true, Ordering::Release);
+				// Send notification if needed
+				let battery_warned = battery_warned.clone();
+				if capacity <= 10 && !charging {
+					if !(battery_warned.load(Ordering::Acquire)) {
+						let notif = Notification::new(
+							"Battery level critical",
+							Some("Connect to power source immediately"),
+							Some("battery-caution"),
+						);
+						notif.set_urgency(Urgency::Critical);
+						notif.show()?;
+						battery_warned.store(true, Ordering::Release);
+					}
+				} else {
+					battery_warned.store(false, Ordering::Release)
 				}
-			} else {
-				battery_warned.store(false, Ordering::Release)
-			}
 
-			let (icon, color) = match capacity {
-				0..=19 => ("", "#FF4000"),
-				20..=39 => ("", "#FFAE00"),
-				40..=59 => ("", "#FFF600"),
-				60..=79 => ("", "#A8FF00"),
-				80..=99 => ("", "#50FF00"),
-				100 if charging => ("", "#50FF00"),
-				_ => ("", "#50FF00"),
-			};
-			Ok(bfmt![
-				fg[color]
-				fmt["{}{} {:.0}%", if charging { "" } else { "" }, icon, capacity]
-			])
-		})))
+				let (icon, color) = match capacity {
+					0..=19 => ("", "#FF4000"),
+					20..=39 => ("", "#FFAE00"),
+					40..=59 => ("", "#FFF600"),
+					60..=79 => ("", "#A8FF00"),
+					80..=99 => ("", "#50FF00"),
+					100 if charging => ("", "#50FF00"),
+					_ => ("", "#50FF00"),
+				};
+				Ok(bfmt![
+					fg[color]
+					fmt["{}{} {:.0}%", if charging { "" } else { "" }, icon, capacity]
+				])
+			})
+		}))
 		// Brightness
 		.register_fn("bright_up", || Backlight::adjust(0.05).unwrap_or(()))
 		.register_fn("bright_down", || Backlight::adjust(-0.05).unwrap_or(()))
@@ -249,5 +264,5 @@ fn main() -> Result<()> {
 		.add(Text::new(bfmt![text["(◕ᴗ◕✿)"]]))
 		.run();
 	//libnotify::uninit();
-Ok(())
+	Ok(())
 }
